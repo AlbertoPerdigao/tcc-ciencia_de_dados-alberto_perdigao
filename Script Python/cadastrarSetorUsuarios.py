@@ -12,6 +12,7 @@ trafego_internet.py
 	fileLdapsearch = file('/indicadores_internet/trafego_internet/ldapsearch.txt', 'r')
 
 	dictLdapsearch = {}
+	'''
 	ultimoSetor = ""
 	usuario = ""
 	
@@ -30,7 +31,26 @@ trafego_internet.py
 	            for setor in setores:
 	                if (setor.find('OU=') != -1):
 	                    ultimoSetor = setor.split("=")[1]
-	
+	'''
+
+	setor = ""
+	usuario = ""
+
+	for row in fileLdapsearch.readlines():
+	    if (len(row.replace("\n", "").strip()) == 0 and len(usuario) > 0 and len(setor) > 0):
+	        dictLdapsearch[usuario] = setor
+		setor = ""
+		usuario = ""
+	    elif (row.find('sAMAccountName:') != -1):
+	        #sAMAccountName: fulano
+	        if (len(row.split(" ")) == 2):
+	            if (row.split(" ")[1].find('$') == -1):
+	                usuario = row.split(" ")[1].replace("\n", "")
+	    elif (row.find('department:') != -1):
+	        #department: CTI
+	        if (len(row.split(": ")) == 2):
+	            setor = row.split(": ")[1].replace("\n", "")
+
 	fileLdapsearch.close
 
 	#Conexao com o banco de dados
