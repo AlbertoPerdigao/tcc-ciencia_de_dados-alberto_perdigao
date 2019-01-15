@@ -25,19 +25,19 @@ import org.apache.hadoop.util.GenericOptionsParser;
  */
 public class TrafegoInternet
 {    
-    static long TEMPO_ULTIMO_REGISTRO_MAPEADO;
-    static String TEMPO_ULTIMO_REGISTRO_LIDO;    
+    static String TEMPO_ULTIMO_REGISTRO_MAPEADO;
+    static String MAIOR_TEMPO_LIDO_REGISTRO = "0.0";    
     static Map<String,String> FONTES = new HashMap<>();
     static String ID_CUSTO_TRAFEGO = "";
     static String ID_FONTE_INTERNET = "";
     static String ID_FONTE_INTERNET_ECONOMIA = "";
     static String ID_FONTE_OUTRAS_FONTES = "";
     static boolean E_FONTE_INTERNET;    
-    static final String SERVIDOR = "servidor";
-    static final String BANCO = "banco";
-    static final String PORTA = "porta";
+    static final String SERVIDOR = "192.168.2.12";
+    static final String BANCO = "db_pge";
+    static final String PORTA = "5432";
     static final String USUARIO = "indicadores_internet";
-    static final String SENHA = "indicadores_internet";
+    static final String SENHA = "Ahshe@F5";
     
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException, SQLException 
     {   
@@ -125,8 +125,9 @@ public class TrafegoInternet
                 idFonte);
 
         String tempo = ConexaoBD.consultarUmRegisto(consulta, "tempo");                
-        TEMPO_ULTIMO_REGISTRO_MAPEADO = tempo.isEmpty() ? 0 : Long.parseLong(tempo.substring(0, tempo.indexOf(".")));
-
+        //TEMPO_ULTIMO_REGISTRO_MAPEADO = tempo.isEmpty() ? 0 : Long.parseLong(tempo.substring(0, tempo.indexOf(".")));
+        TEMPO_ULTIMO_REGISTRO_MAPEADO  = tempo.isEmpty() ? "0.0" : tempo;
+        
         Configuration conf = new Configuration();
         FileSystem fs = FileSystem.get(conf);
         String[] files = new GenericOptionsParser(conf, args).getRemainingArgs();
@@ -166,7 +167,7 @@ public class TrafegoInternet
         if (job.waitForCompletion(true))
         {                    
             String comando = String.format("INSERT INTO adm_indicadores_internet.ultimo_registro_mapeado (tempo, fonte_id, created_at, updated_at) VALUES ('%s', %s, now(), now());", 
-                    TEMPO_ULTIMO_REGISTRO_LIDO, idFonte);
+                    MAIOR_TEMPO_LIDO_REGISTRO, idFonte);
             ConexaoBD.inserirAlterarRegistro(comando);
             ConexaoBD.getConexao().commit();
         }
@@ -186,16 +187,27 @@ public class TrafegoInternet
             //Ex.: 1516892461.126    502 192.168.?.? TCP_MISS/200 42041 GET http://portal.estacio.br/ alberto HIER_DIRECT/177.184.128.208 text/html
             
             String linha = value.toString();
-            linha = linha.replaceAll("\\s+", " ");
+            linha = linha.replaceAll("\\s+", " ");            
             String[] palavras = linha.split(" ");
-                        
-            long tempoRegistro = Long.parseLong(palavras[0].substring(0, palavras[0].indexOf(".")));                        
-            long bytes = Long.parseLong(palavras[4]);            
+            palavras[0] = palavras[0].trim();
             
-            if (palavras.length == 10 && tempoRegistro > TEMPO_ULTIMO_REGISTRO_MAPEADO 
+            long tempoRegistro = Long.parseLong(palavras[0].substring(0, palavras[0].indexOf(".")));
+            int tempo2Registro = Integer.parseInt(palavras[0].substring((palavras[0].indexOf(".") + 1)));
+            long tempoUltimoRegistroMapeado = Long.parseLong(TEMPO_ULTIMO_REGISTRO_MAPEADO.substring(0, TEMPO_ULTIMO_REGISTRO_MAPEADO.indexOf(".")));
+            int tempo2UltimoRegistroMapeado = Integer.parseInt(TEMPO_ULTIMO_REGISTRO_MAPEADO.substring((TEMPO_ULTIMO_REGISTRO_MAPEADO.indexOf(".") + 1)));
+            
+            long bytes = Long.parseLong(palavras[4]);
+            boolean tempoValido = false;
+            
+            if (palavras[0].indexOf(".") > 0 
+                    && ((tempoRegistro > tempoUltimoRegistroMapeado) || (tempoRegistro == tempoUltimoRegistroMapeado && tempo2Registro > tempo2UltimoRegistroMapeado)))
+                tempoValido = true;
+            
+            if (palavras.length == 10
+                    && tempoValido
                     && (!palavras[3].contains("TCP_DENIED")) && bytes > 0 
                     && (!palavras[6].contains("drive.pge.ce.gov.br")))
-            {                                
+            {                
                 String data = new SimpleDateFormat("yyyy-MM-dd").format(new Date(tempoRegistro * 1000L));
                 String usuario = palavras[7];
                 
@@ -248,7 +260,12 @@ public class TrafegoInternet
                 }
             }
             
-            TEMPO_ULTIMO_REGISTRO_LIDO = palavras[0];            
+            long maiorTempoLido = Long.parseLong(MAIOR_TEMPO_LIDO_REGISTRO.substring(0, MAIOR_TEMPO_LIDO_REGISTRO.indexOf(".")));
+            int maiorTempo2Lido = Integer.parseInt(MAIOR_TEMPO_LIDO_REGISTRO.substring((MAIOR_TEMPO_LIDO_REGISTRO.indexOf(".") + 1)));
+            
+            if (palavras[0].indexOf(".") > 0 
+                    && ((tempoRegistro > maiorTempoLido) || (tempoRegistro == maiorTempoLido && tempo2Registro > maiorTempo2Lido)))
+                MAIOR_TEMPO_LIDO_REGISTRO = palavras[0];
         }
     }
            
@@ -303,11 +320,22 @@ public class TrafegoInternet
             String linha = value.toString();
             linha = linha.replaceAll("\\s+", " ");
             String[] palavras = linha.split(" ");
-                        
-            long tempoRegistro = Long.parseLong(palavras[0].substring(0, palavras[0].indexOf(".")));                        
-            long bytes = Long.parseLong(palavras[4]);            
+            palavras[0] = palavras[0].trim();
             
-            if (palavras.length == 10 && tempoRegistro > TEMPO_ULTIMO_REGISTRO_MAPEADO 
+            long tempoRegistro = Long.parseLong(palavras[0].substring(0, palavras[0].indexOf(".")));                        
+            int tempo2Registro = Integer.parseInt(palavras[0].substring((palavras[0].indexOf(".") + 1)));            
+            long tempoUltimoRegistroMapeado = Long.parseLong(TEMPO_ULTIMO_REGISTRO_MAPEADO.substring(0, TEMPO_ULTIMO_REGISTRO_MAPEADO.indexOf(".")));
+            int tempo2UltimoRegistroMapeado = Integer.parseInt(TEMPO_ULTIMO_REGISTRO_MAPEADO.substring((TEMPO_ULTIMO_REGISTRO_MAPEADO.indexOf(".") + 1)));
+            
+            long bytes = Long.parseLong(palavras[4]);
+            boolean tempoValido = false;
+            
+            if (palavras[0].indexOf(".") > 0 
+                    && ((tempoRegistro > tempoUltimoRegistroMapeado) || (tempoRegistro == tempoUltimoRegistroMapeado && tempo2Registro > tempo2UltimoRegistroMapeado)))
+                tempoValido = true;
+            
+            if (palavras.length == 10 
+                    && tempoValido
                     && bytes > 0 && (!palavras[6].contains("drive.pge.ce.gov.br"))
                     && (palavras[3].contains("TCP_DENIED") || palavras[3].contains("TCP_HIT")))
             {                                
@@ -324,7 +352,12 @@ public class TrafegoInternet
                 context.write(outputKey, outputValue);
             }
             
-            TEMPO_ULTIMO_REGISTRO_LIDO = palavras[0];            
+            long maiorTempoLido = Long.parseLong(MAIOR_TEMPO_LIDO_REGISTRO.substring(0, MAIOR_TEMPO_LIDO_REGISTRO.indexOf(".")));
+            int maiorTempo2Lido = Integer.parseInt(MAIOR_TEMPO_LIDO_REGISTRO.substring((MAIOR_TEMPO_LIDO_REGISTRO.indexOf(".") + 1)));
+            
+            if (palavras[0].indexOf(".") > 0 
+                    && ((tempoRegistro > maiorTempoLido) || (tempoRegistro == maiorTempoLido && tempo2Registro > maiorTempo2Lido)))
+                MAIOR_TEMPO_LIDO_REGISTRO = palavras[0];
         }
     }
     
