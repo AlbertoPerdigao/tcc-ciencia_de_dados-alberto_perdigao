@@ -1,20 +1,23 @@
 #!/bin/bash
 
-qtd_processos=`ps aux | grep -c "script_trafego_internet.sh"`
+script_rodando=`cat /etc/scripts/indicadores_internet/script_rodando.txt`
 
-if [ "$qtd_processos" -lt 4 ]
+if [ "$script_rodando" -eq 0 ]
 then
+        echo "1" > /etc/scripts/indicadores_internet/script_rodando.txt
 
-	#Limpa arquivos processados
-	rm /indicadores_internet/trafego_internet/access_processado.log 2>/tmp/erro
+        #Limpa arquivos processados
+        rm /etc/scripts/indicadores_internet/trafego_internet/access_processado.log 2>/tmp/erro
 
-	#Envia arquivo access.log pro Hadoop
-	/usr/local/hadoop/bin/hadoop fs -put /var/log/squid3/access.log /indicadores_internet/trafego_internet/access_processado.log
+        #Envia o arquivo access.log pro Hadoop
+        /usr/local/hadoop/bin/hadoop fs -put /mnt/logsquid/access.log /etc/scripts/indicadores_internet/trafego_internet/access_processado.log
 
-	#Executa o .jar no Hadoop e guarda os resultados
-	/usr/local/hadoop/bin/hadoop jar /indicadores_internet/trafego_internet/TrafegoInternet.jar /indicadores_internet/trafego_internet/access_processado.log /indicadores_internet/trafego_internet
+        #Executa o .jar no Hadoop e guarda os resultados
+        /usr/local/hadoop/bin/hadoop jar /etc/scripts/indicadores_internet/trafego_internet/TrafegoInternet.jar /etc/scripts/indicadores_internet/trafego_internet/access_processado.log /etc/scripts/indicadores_internet/trafego_internet
 
-	#Executa script python pra cadastrar o setor aos usuarios no banco Postgres
-	python /indicadores_internet/trafego_internet/cadastrarSetorUsuarios.py
+        #Executa script python pra cadastrar o setor aos usuarios no banco Postgres
+        python /etc/scripts/indicadores_internet/trafego_internet/cadastrarSetorUsuarios.py
 
+        echo "0" > /etc/scripts/indicadores_internet/script_rodando.txt
 fi
+
