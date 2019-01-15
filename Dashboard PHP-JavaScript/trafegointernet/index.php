@@ -41,6 +41,18 @@ if (!$result) {
 }
 $dataTableSetores = $result;
 
+//Anos
+$result = pg_query($dbcon, "SELECT DISTINCT EXTRACT(YEAR FROM periodo) FROM adm_indicadores_internet.trafego ORDER BY 1 DESC;");
+if (!$result) {
+  echo "Erro na consulta de Anos.<br>";
+  exit;
+}
+$dataTableAnos = $result;
+
+while ($row = pg_fetch_row($dataTableAnos)) {
+  $valoresComboAno[] = $row[0];
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -142,7 +154,7 @@ $dataTableSetores = $result;
               <div class="col-md-1">
                 <select class="form-control input-sm" id="combo_ano" name="ano">
                   <?php
-                    $valoresComboAno = array("2018", "2017");
+                    //$valoresComboAno = array("2018", "2017");
                     foreach($valoresComboAno as $a) {
                       $selected = ($_POST['ano'] == $a) ? 'selected' : '';
                       echo '<option value="'.$a.'" '.$selected.'>'.$a.'</option>';
